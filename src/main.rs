@@ -1,8 +1,9 @@
 //! Eat the cakes. Eat them all. An example 3D game.
 
-use std::f32::consts::PI;
+use std::{f32::consts::PI, process::CommandArgs};
 
 use bevy::prelude::*;
+use bevy_audio::AudioPlugin;
 use rand::Rng;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
@@ -24,6 +25,7 @@ fn main() {
         )))
         .add_plugins(DefaultPlugins)
         .add_state::<GameState>()
+        .add_startup_system(play_bgm_audio_setup)
         .add_systems((
             setup_cameras.on_startup(),
             setup.in_schedule(OnEnter(GameState::Playing)),
@@ -190,6 +192,18 @@ fn teardown(mut commands: Commands, entities: Query<Entity, Without<Camera>>) {
     }
 }
 
+fn play_bgm_audio_setup(
+    audio: Res<Audio>, 
+    asset_server: Res<AssetServer>,
+    audio_sink: Res<Assets<AudioSink>>
+) {
+    let music = asset_server.load("audio/bgm/nyancat.mp3");
+    audio.play_with_settings(
+        music,
+        PlaybackSettings::LOOP,
+    );
+}
+
 // control the game character
 fn move_player(
     mut commands: Commands,
@@ -197,6 +211,8 @@ fn move_player(
     mut game: ResMut<Game>,
     mut transforms: Query<&mut Transform>,
     time: Res<Time>,
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
 ) {
     if game.player.move_cooldown.tick(time.delta()).finished() {
         let mut moved = false;
@@ -246,13 +262,17 @@ fn move_player(
         }
     }
 
+    let cat_se = asset_server.load("sounds/neko.mp3");
     // eat the cake!
+    // この時に音声を再生する
     if let Some(entity) = game.bonus.entity {
         if game.player.i == game.bonus.i && game.player.j == game.bonus.j {
             game.score += 2;
             game.cake_eaten += 1;
             commands.entity(entity).despawn_recursive();
             game.bonus.entity = None;
+
+            audio.play(cat_se);
         }
     }
 }
